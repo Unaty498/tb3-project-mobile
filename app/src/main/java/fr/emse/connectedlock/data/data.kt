@@ -1,6 +1,6 @@
 package fr.emse.connectedlock.data
 
-val sampleUser = User("Alice Dupont", "alice.dupont@example.com")
+val sampleUser = User("user-alice-001", "Alice Dupont", "alice.dupont@example.com")
 
 val sampleBadges = listOf(
     Badge("BADGE-USER-001", "Physical", "2024-12-31"),

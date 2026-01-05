@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,18 +41,21 @@ import androidx.compose.ui.unit.dp
 import fr.emse.connectedlock.data.Badge
 import fr.emse.connectedlock.data.Door
 import fr.emse.connectedlock.data.User
-import fr.emse.connectedlock.data.sampleBadges
-import fr.emse.connectedlock.data.sampleDoors
 import fr.emse.connectedlock.data.sampleUser
+import fr.emse.connectedlock.ui.login.LoginScreen
 import fr.emse.connectedlock.ui.theme.ConnectedLockTheme
+import fr.emse.connectedlock.viewmodel.MainViewModel
 
 class MainActivity : ComponentActivity() {
+
+    private val viewModel: MainViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             ConnectedLockTheme {
-                ConnectedLockApp()
+                ConnectedLockApp(viewModel = viewModel)
             }
         }
     }
@@ -59,7 +63,21 @@ class MainActivity : ComponentActivity() {
 
 @PreviewScreenSizes
 @Composable
-fun ConnectedLockApp() {
+fun ConnectedLockApp(viewModel: MainViewModel) {
+    if (viewModel.isAuthenticated.value) {
+        MainContent(viewModel)
+    } else {
+        LoginScreen(
+            onLoginClick = { username, password ->
+                viewModel.login(username, password)
+            },
+            errorMessage = viewModel.loginError.value
+        )
+    }
+}
+
+@Composable
+fun MainContent(viewModel: MainViewModel) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
 
     NavigationSuiteScaffold(
@@ -82,9 +100,9 @@ fun ConnectedLockApp() {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {
                 when (currentDestination) {
-                    AppDestinations.HOME -> HomeScreen(user = sampleUser)
-                    AppDestinations.BADGES -> BadgesScreen(badges = sampleBadges)
-                    AppDestinations.DOORS -> DoorsScreen(doors = sampleDoors)
+                    AppDestinations.HOME -> viewModel.user.value?.let { HomeScreen(user = it) }
+                    AppDestinations.BADGES -> BadgesScreen(badges = viewModel.badges.value)
+                    AppDestinations.DOORS -> DoorsScreen(doors = viewModel.doors.value)
                 }
             }
         }
@@ -173,7 +191,7 @@ fun DoorItem(door: Door) {
             Column {
                 Text(text = door.name, style = MaterialTheme.typography.headlineSmall)
                 Text(text = "ID: ${door.id}", style = MaterialTheme.typography.bodyMedium)
-                Text(text = door.location, style = MaterialTheme.typography.bodyMedium)
+                Text(text = "Expires: ${door.location}", style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
