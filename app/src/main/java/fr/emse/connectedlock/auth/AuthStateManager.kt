@@ -22,4 +22,10 @@ class AuthStateManager(context: Context) {
             putString("stateJson", state.jsonSerializeString())
         }
     }
+
+    fun clear() {
+        prefs.edit {
+            remove("stateJson")
+        }
+    }
 }

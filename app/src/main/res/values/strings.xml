@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Connected Lock</string>
+    <string name="servicedesc">Connected Lock Card Emulation</string>
+    <string name="aiddescription">Connected Lock Badge</string>
 </resources>

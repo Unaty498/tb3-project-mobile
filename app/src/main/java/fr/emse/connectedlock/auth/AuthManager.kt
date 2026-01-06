@@ -53,4 +53,10 @@ class AuthManager(private val context: Context) {
     fun getAuthState(): AuthState {
         return authStateManager.read()
     }
+
+    fun logout() {
+        val authState = AuthState()
+        authStateManager.write(authState)
+        authStateManager.clear()
+    }
 }

@@ -10,7 +10,9 @@ import fr.emse.connectedlock.data.Badge
 import fr.emse.connectedlock.data.Door
 import fr.emse.connectedlock.data.User
 import fr.emse.connectedlock.service.RetrofitClient
+import fr.emse.connectedlock.service.ActivateBadgeRequest
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     val user = mutableStateOf<User?>(null)
@@ -18,6 +20,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val doors = mutableStateOf<List<Door>>(emptyList())
     val isAuthenticated = mutableStateOf(false)
     val loginError = mutableStateOf<String?>(null)
+    val isRefreshing = mutableStateOf(false)
+    val isActivating = mutableStateOf(false)
 
     private val apiService = RetrofitClient.getInstance(application)
     private val authManager = AuthManager(application)
@@ -44,24 +48,58 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 fetchData()
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Login failed", e)
-                if (e.message?.contains("iss claim is not valid") == true) {
-                    loginError.value = "Login failed: Issuer mismatch. Keycloak issued a token for 'localhost' but app used '10.0.2.2'.\nFix: Set KC_HOSTNAME_STRICT=false in Keycloak or use 'adb reverse tcp:80 tcp:80'."
-                } else {
-                    loginError.value = "Login failed: ${e.message}"
-                }
+                loginError.value = "Login failed: ${e.message}"
             }
         }
     }
 
     fun fetchData() {
+        Log.d("MainViewModel", "Fetching data...")
         viewModelScope.launch {
             try {
-                user.value = apiService.getCurrentUser()
-                badges.value = apiService.getBadges()
+                val currentUser = apiService.getCurrentUser()
+                user.value = currentUser
+                badges.value = apiService.getBadges(currentUser.id)
                 doors.value = apiService.getDoors()
+            } catch (e: HttpException) {
+                if (e.code() == 401) {
+                    Log.w("MainViewModel", "Unauthorized (401). Logging out.")
+                    isAuthenticated.value = false
+                    authManager.logout()
+                } else {
+                    Log.e("MainViewModel", "HttpException fetching data", e)
+                }
             } catch (e: Exception) {
                 // Handle data fetching error
+                Log.e("MainViewModel", "Error fetching data", e)
+            } finally {
+                isRefreshing.value = false
             }
         }
+    }
+
+    fun refresh() {
+        isRefreshing.value = true
+        fetchData()
+    }
+
+    fun activateBadge(badgeId: String) {
+        viewModelScope.launch {
+            isActivating.value = true
+            try {
+                apiService.activateBadge(badgeId, ActivateBadgeRequest(physicallyMapped = true))
+                fetchData() // Refresh list to show updated status
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Error activating badge", e)
+                // You might want to expose an error state here
+            } finally {
+                isActivating.value = false
+            }
+        }
+    }
+
+    fun logout() {
+        isAuthenticated.value = false
+        authManager.logout()
     }
 }
