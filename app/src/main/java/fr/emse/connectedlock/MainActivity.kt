@@ -35,6 +35,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
@@ -47,11 +48,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import fr.emse.connectedlock.data.AccessRule
 import fr.emse.connectedlock.data.Badge
 import fr.emse.connectedlock.data.Door
 import fr.emse.connectedlock.data.User
@@ -67,6 +70,10 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private val viewModel: MainViewModel by viewModels()
     private var nfcAdapter: NfcAdapter? = null
     private var badgeToWrite: Badge? = null
+
+    fun isNfcEnabled(): Boolean {
+        return nfcAdapter?.isEnabled == true
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -97,6 +104,10 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     }
 
     fun startNfcWrite(badge: Badge) {
+        if (!isNfcEnabled()) {
+            Toast.makeText(this, "NFC is not enabled", Toast.LENGTH_LONG).show()
+            return
+        }
         badgeToWrite = badge
         val options = Bundle()
         options.putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 250)
@@ -246,16 +257,24 @@ fun MainContent(viewModel: MainViewModel) {
                             AppDestinations.BADGES -> BadgesScreen(
                                 badges = viewModel.badges.value,
                                 onBadgeClick = { badge ->
-                                    if (badge.type.equals("Mobile", true)) {
-                                        selectedBadge = badge
-                                        showEmulationScreen = true
-                                    } else if (!badge.physicallyMapped) {
-                                        selectedBadge = badge
-                                        showActivateDialog = true
+                                    val activity = context as? MainActivity
+                                    if (activity?.isNfcEnabled() != true) {
+                                        Toast.makeText(context, "NFC is required. Please enable it.", Toast.LENGTH_LONG).show()
+                                    } else {
+                                        if (badge.type.equals("Mobile", true)) {
+                                            selectedBadge = badge
+                                            showEmulationScreen = true
+                                        } else if (!badge.physicallyMapped) {
+                                            selectedBadge = badge
+                                            showActivateDialog = true
+                                        }
                                     }
                                 }
                             )
-                            AppDestinations.DOORS -> DoorsScreen(doors = viewModel.doors.value)
+                            AppDestinations.DOORS -> DoorsScreen(
+                                doors = viewModel.doors.value,
+                                accessRules = viewModel.accessRules.value
+                            )
                         }
                     }
                 }
@@ -286,7 +305,29 @@ fun HomeScreen(modifier: Modifier = Modifier, user: User, onLogout: () -> Unit) 
         Text("Welcome, ${user.firstName}", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(8.dp))
         user.email?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (user.role.isNotEmpty()) {
+            Text("Role: ${user.role}", style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Account activity : Red pill for inactive and green for active
+        Surface(
+            color = if (user.active) Color(0xFF4CAF50) else Color(0xFFF44336),
+            shape = MaterialTheme.shapes.extraLarge,
+            modifier = Modifier.padding(bottom = 16.dp)
+        ) {
+            Text(
+                text = if (user.active) "Active" else "Inactive",
+                color = Color.White,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                style = MaterialTheme.typography.labelMedium
+            )
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
+
         Button(onClick = onLogout) {
             Text("Logout")
         }
@@ -317,7 +358,11 @@ fun BadgeItem(badge: Badge, onClick: () -> Unit) {
             Icon(Icons.Filled.CreditCard, contentDescription = "Badge")
             Spacer(modifier = Modifier.width(16.dp))
             Column {
-                Text(text = badge.type, style = MaterialTheme.typography.headlineSmall)
+                Text(text = badge.badgeNumber, style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    text = badge.type,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
                 Text(text = "ID: ${badge.id}", style = MaterialTheme.typography.bodyMedium)
                 Text(text = "Expires: ${badge.expiryDate}", style = MaterialTheme.typography.bodyMedium)
             }
@@ -326,32 +371,52 @@ fun BadgeItem(badge: Badge, onClick: () -> Unit) {
 }
 
 @Composable
-fun DoorsScreen(modifier: Modifier = Modifier, doors: List<Door>) {
+fun DoorsScreen(modifier: Modifier = Modifier, doors: List<Door>, accessRules: List<AccessRule>) {
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
         items(doors) { door ->
-            DoorItem(door = door)
+            val doorRules = accessRules.filter { it.doorId == door.id }
+            DoorItem(door = door, rules = doorRules)
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
 
 @Composable
-fun DoorItem(door: Door) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Filled.Lock, contentDescription = "Door")
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(text = door.name, style = MaterialTheme.typography.headlineSmall)
-                Text(text = "ID: ${door.id}", style = MaterialTheme.typography.bodyMedium)
-                Text(text = "Expires: ${door.location}", style = MaterialTheme.typography.bodyMedium)
+fun DoorItem(door: Door, rules: List<AccessRule>) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Lock, contentDescription = "Door")
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(text = door.name, style = MaterialTheme.typography.headlineSmall)
+                    Text(text = "ID: ${door.id}", style = MaterialTheme.typography.bodyMedium)
+                    Text(text = "Lieu: ${door.location}", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+            if (expanded) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Access Times:", style = MaterialTheme.typography.labelLarge)
+                if (rules.isEmpty()) {
+                     Text("No access rules found.", style = MaterialTheme.typography.bodySmall)
+                } else {
+                    rules.forEach { rule ->
+                        rule.timeSlots.forEach { slot ->
+                             Text(
+                                text = "${slot.dayOfWeek}: ${slot.startTime} - ${slot.endTime}",
+                                style = MaterialTheme.typography.bodySmall
+                             )
+                        }
+                    }
+                }
             }
         }
     }

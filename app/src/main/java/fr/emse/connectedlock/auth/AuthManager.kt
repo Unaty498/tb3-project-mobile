@@ -1,5 +1,6 @@
 package fr.emse.connectedlock.auth
 
+import fr.emse.connectedlock.Config
 import android.content.Context
 import android.net.Uri
 import fr.emse.connectedlock.service.ApiService
@@ -26,8 +27,8 @@ class AuthManager(private val context: Context) {
         // Build a proper AuthState object using the token response from the server.
         // This ensures the expiration time and other details are handled correctly by AppAuth.
         val serviceConfig = AuthorizationServiceConfiguration(
-            "http://10.0.2.2/keycloak/realms/connected-lock/protocol/openid-connect/auth".toUri(), // Dummy endpoint, not used in this flow
-            "http://10.0.2.2/keycloak/realms/connected-lock/protocol/openid-connect/token".toUri()
+            (Config.BASE_URL + "keycloak/realms/connected-lock/protocol/openid-connect/auth").toUri(), // Dummy endpoint, not used in this flow
+            (Config.BASE_URL + "keycloak/realms/connected-lock/protocol/openid-connect/token").toUri()
         )
 
         // Create a minimal TokenRequest; this is required by the TokenResponse.Builder

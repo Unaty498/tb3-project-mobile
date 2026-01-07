@@ -1,6 +1,7 @@
 package fr.emse.connectedlock.service
 
 import android.content.Context
+import fr.emse.connectedlock.Config
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import fr.emse.connectedlock.auth.AuthInterceptor
@@ -10,7 +11,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 
 object RetrofitClient {
-    private const val BASE_URL = "http://10.0.2.2:80/"
+    private const val BASE_URL = Config.BASE_URL
 
     private val moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())

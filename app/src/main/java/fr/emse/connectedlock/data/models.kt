@@ -27,3 +27,18 @@ data class Door(
     val deviceId: String? = "",
     val active: Boolean = false
 )
+
+data class AccessRule(
+    val id: String = "",
+    val userId: String = "",
+    val doorId: String = "",
+    val timeSlots: List<TimeSlot> = emptyList(),
+    val active: Boolean = false,
+
+)
+
+data class TimeSlot(
+    val dayOfWeek: String = "",
+    val startTime: String = "",
+    val endTime: String = ""
+)

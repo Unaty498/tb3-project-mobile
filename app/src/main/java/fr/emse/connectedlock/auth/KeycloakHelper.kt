@@ -1,5 +1,6 @@
 package fr.emse.connectedlock.auth
 
+import fr.emse.connectedlock.Config
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
@@ -11,7 +12,7 @@ import androidx.core.net.toUri
 
 object KeycloakHelper {
 
-    private const val SERVER_URL = "http://10.0.2.2:8080/realms/connected-lock"
+    private const val SERVER_URL = Config.BASE_URL + "keycloak/realms/connected-lock"
     private const val CLIENT_ID = "mobile-app"
     private const val REDIRECT_URI = "fr.emse.connectedlock:/oauth2redirect"
 

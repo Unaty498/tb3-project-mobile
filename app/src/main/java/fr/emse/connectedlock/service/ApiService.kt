@@ -4,6 +4,7 @@ import com.squareup.moshi.Json
 import fr.emse.connectedlock.data.Badge
 import fr.emse.connectedlock.data.Door
 import fr.emse.connectedlock.data.User
+import fr.emse.connectedlock.data.AccessRule
 import retrofit2.http.Body
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
@@ -23,7 +24,7 @@ data class ActivateBadgeRequest(val physicallyMapped: Boolean)
 
 interface ApiService {
     @FormUrlEncoded
-    @POST("http://10.0.2.2/keycloak/realms/connected-lock/protocol/openid-connect/token")
+    @POST("keycloak/realms/connected-lock/protocol/openid-connect/token")
     suspend fun getToken(
         @Field("client_id") clientId: String,
         @Field("username") username: String,
@@ -42,4 +43,7 @@ interface ApiService {
 
     @GET("api/doors")
     suspend fun getDoors(): List<Door>
+
+    @GET("api/access-rules/user/{userId}")
+    suspend fun getAccess(@Path("userId") userId: String): List<AccessRule>
 }

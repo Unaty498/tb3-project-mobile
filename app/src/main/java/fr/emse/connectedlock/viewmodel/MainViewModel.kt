@@ -9,6 +9,7 @@ import fr.emse.connectedlock.auth.AuthManager
 import fr.emse.connectedlock.data.Badge
 import fr.emse.connectedlock.data.Door
 import fr.emse.connectedlock.data.User
+import fr.emse.connectedlock.data.AccessRule
 import fr.emse.connectedlock.service.RetrofitClient
 import fr.emse.connectedlock.service.ActivateBadgeRequest
 import kotlinx.coroutines.launch
@@ -18,6 +19,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val user = mutableStateOf<User?>(null)
     val badges = mutableStateOf<List<Badge>>(emptyList())
     val doors = mutableStateOf<List<Door>>(emptyList())
+    val accessRules = mutableStateOf<List<AccessRule>>(emptyList())
     val isAuthenticated = mutableStateOf(false)
     val loginError = mutableStateOf<String?>(null)
     val isRefreshing = mutableStateOf(false)
@@ -61,6 +63,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 user.value = currentUser
                 badges.value = apiService.getBadges(currentUser.id)
                 doors.value = apiService.getDoors()
+                accessRules.value = apiService.getAccess(currentUser.id)
             } catch (e: HttpException) {
                 if (e.code() == 401) {
                     Log.w("MainViewModel", "Unauthorized (401). Logging out.")
