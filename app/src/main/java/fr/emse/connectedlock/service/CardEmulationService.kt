@@ -15,26 +15,16 @@ class CardEmulationService : HostApduService() {
              return hexStringToByteArray(STATUS_FAILED)
         }
 
-        // Check if correct AID is selected
-        // The detailed APDU parsing can be complex.
-        // For HCE with a single AID, Android routes it here.
-        // Usually the first command is SELECT AID.
-        // We will assume that if we are here, and emulation is on, we should respond.
+        val command = toHex(commandApdu)
 
-        // Protocol:
-        // 1. Reader selects AID.
-        // 2. We respond with OK (9000).
-        // 3. Reader asks for data (e.g., READ BINARY or proprietary).
-        // 4. We respond with badge ID.
-
-        // Simplified for this demo: ANY command after selection returns the Badge ID if available.
-        // Real implementation should parse the APDU header (CLA, INS, P1, P2)
-
-        val badgeId = BadgeEmulationState.activeBadgeId
-        if (badgeId != null) {
-            Log.d(TAG, "Responding with badge ID: $badgeId")
-            val payload = badgeId.toByteArray(Charset.forName("UTF-8"))
-            return concatArrays(payload, hexStringToByteArray(STATUS_SUCCESS))
+        if (command == SELECT_AID) {
+            Log.d(TAG, "Selected AID. Responding with badge ID.")
+            val badgeId = BadgeEmulationState.activeBadgeId
+            if (badgeId != null) {
+                Log.d(TAG, "Responding with badge ID: $badgeId")
+                val payload = badgeId.toByteArray(Charset.forName("UTF-8"))
+                return concatArrays(payload, hexStringToByteArray(STATUS_SUCCESS))
+            }
         }
 
         return hexStringToByteArray(STATUS_FAILED)
@@ -48,7 +38,7 @@ class CardEmulationService : HostApduService() {
         private const val TAG = "CardEmulationService"
         private const val STATUS_SUCCESS = "9000"
         private const val STATUS_FAILED = "6F00"
-        private val SELECT_AID = "00A4040007F0010203040506"
+        private const val SELECT_AID = "00A4040007F0010203040506"
 
         fun toHex(bytes: ByteArray): String {
             val sb = StringBuilder()
